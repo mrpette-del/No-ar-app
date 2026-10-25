@@ -143,6 +143,9 @@ function filterString(edit) {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState(false);
+  const [users, setUsers] = useState([]);
+
   const [step, setStep] = useState(1);
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaURL, setMediaURL] = useState(DEMO_IMAGE_URL);
@@ -271,6 +274,16 @@ Devolve APENAS um array JSON de 3 strings (as 3 legendas), sem markdown, sem tex
     }, 1400);
   };
 
+  if (!authed) {
+    return (
+      <AuthScreen
+        users={users}
+        setUsers={setUsers}
+        onAuthenticated={() => setAuthed(true)}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -316,8 +329,15 @@ Devolve APENAS um array JSON de 3 strings (as 3 legendas), sem markdown, sem tex
             gestão de conteúdo para redes sociais
           </span>
         </div>
-        <div style={{ fontSize: 12, color: "#8B92A0", display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ fontSize: 12, color: "#8B92A0", display: "flex", alignItems: "center", gap: 14 }}>
           {published ? <span style={{ color: "#E8402A" }} className="osw">● NO AR</span> : "em estúdio"}
+          <button
+            type="button"
+            onClick={() => setAuthed(false)}
+            style={{ background: "none", border: "none", color: "#8B92A0", fontSize: 12, textDecoration: "underline", cursor: "pointer", padding: 0 }}
+          >
+            Terminar sessão
+          </button>
         </div>
       </header>
 
@@ -986,6 +1006,196 @@ function PhonePreview({ mediaURL, mediaType, caption, track, schedule, platform,
             Publicação agendada: <b style={{ color: "#F1F0EC" }}>{formatPtDate(schedule)}</b>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ================= AUTH SCREEN (login / registo / recuperar) =================
+   Nota: isto é apenas front-end, para teres o ecrã pronto a mostrar. Não há
+   nenhuma base de dados real por trás — os utilizadores ficam guardados só em
+   memória, enquanto a página estiver aberta. Para autenticação real (com
+   palavras-passe guardadas em segurança) é preciso ligar isto a um backend. */
+function AuthScreen({ users, setUsers, onAuthenticated }) {
+  const [view, setView] = useState("login"); // "login" | "signup" | "forgot"
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+
+  const resetFields = () => {
+    setPassword("");
+    setConfirm("");
+    setError("");
+  };
+
+  const switchView = (v) => {
+    setView(v);
+    setError("");
+    setForgotSent(false);
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const match = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password);
+    if (!match) {
+      setError("Email ou palavra-passe incorretos.");
+      return;
+    }
+    onAuthenticated();
+  };
+
+  const handleSignup = (e) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !password) {
+      setError("Preenche todos os campos.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("As palavras-passe não coincidem.");
+      return;
+    }
+    if (users.some((u) => u.email.toLowerCase() === email.trim().toLowerCase())) {
+      setError("Já existe uma conta com este email.");
+      return;
+    }
+    setUsers((prev) => [...prev, { name: name.trim(), email: email.trim(), password }]);
+    onAuthenticated();
+  };
+
+  const handleForgot = (e) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setError("Indica o teu email.");
+      return;
+    }
+    setError("");
+    setForgotSent(true);
+  };
+
+  const inputStyle = {
+    width: "100%", background: "#1F2226", border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: 8, padding: "12px 14px", color: "#F1F0EC", fontSize: 14,
+    fontFamily: "'IBM Plex Sans', sans-serif", marginTop: 6,
+  };
+  const labelStyle = { fontSize: 12, textTransform: "uppercase", color: "#8B92A0", display: "block" };
+  const primaryBtnStyle = {
+    width: "100%", padding: "13px", borderRadius: 8, border: "none", marginTop: 6,
+    background: "#E8402A", color: "#17181B", fontSize: 14, fontWeight: 600,
+    textTransform: "uppercase", cursor: "pointer", letterSpacing: "0.02em",
+  };
+  const linkBtnStyle = {
+    background: "none", border: "none", color: "#8B92A0", fontSize: 13,
+    textDecoration: "underline", cursor: "pointer", padding: 0,
+  };
+
+  return (
+    <div
+      style={{
+        background: "#17181B", color: "#F1F0EC", minHeight: "100vh",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: "'IBM Plex Sans', sans-serif", padding: 24,
+      }}
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+        .osw { font-family: 'Oswald', sans-serif; letter-spacing: 0.02em; }
+      `}</style>
+
+      <div style={{ width: "100%", maxWidth: 360 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center", marginBottom: 28 }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#3A3E46" }} />
+          <span className="osw" style={{ fontSize: 24, fontWeight: 700, textTransform: "uppercase" }}>No Ar</span>
+        </div>
+
+        <div style={{ background: "#1F2226", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: 26 }}>
+          {view === "login" && (
+            <form onSubmit={handleLogin}>
+              <h2 className="osw" style={{ fontSize: 20, textTransform: "uppercase", marginBottom: 18, textAlign: "center" }}>Entrar</h2>
+              <label style={labelStyle}>Email
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} placeholder="tu@email.com" />
+              </label>
+              <label style={{ ...labelStyle, marginTop: 14 }}>Palavra-passe
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
+              </label>
+              {error && <div style={{ color: "#FF8A65", fontSize: 13, marginTop: 10 }}>{error}</div>}
+              <button type="submit" style={primaryBtnStyle}>Entrar</button>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16 }}>
+                <button type="button" style={linkBtnStyle} onClick={() => { resetFields(); switchView("forgot"); }}>
+                  Esqueceste-te da password?
+                </button>
+              </div>
+              <div style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "#8B92A0" }}>
+                Ainda não tens conta?{" "}
+                <button type="button" style={{ ...linkBtnStyle, color: "#E8402A" }} onClick={() => { resetFields(); switchView("signup"); }}>
+                  Criar conta
+                </button>
+              </div>
+            </form>
+          )}
+
+          {view === "signup" && (
+            <form onSubmit={handleSignup}>
+              <h2 className="osw" style={{ fontSize: 20, textTransform: "uppercase", marginBottom: 18, textAlign: "center" }}>Criar conta</h2>
+              <label style={labelStyle}>Nome
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} placeholder="O teu nome" />
+              </label>
+              <label style={{ ...labelStyle, marginTop: 14 }}>Email
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} placeholder="tu@email.com" />
+              </label>
+              <label style={{ ...labelStyle, marginTop: 14 }}>Palavra-passe
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
+              </label>
+              <label style={{ ...labelStyle, marginTop: 14 }}>Confirmar palavra-passe
+                <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} style={inputStyle} placeholder="••••••••" />
+              </label>
+              {error && <div style={{ color: "#FF8A65", fontSize: 13, marginTop: 10 }}>{error}</div>}
+              <button type="submit" style={primaryBtnStyle}>Criar conta</button>
+              <div style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "#8B92A0" }}>
+                Já tens conta?{" "}
+                <button type="button" style={{ ...linkBtnStyle, color: "#E8402A" }} onClick={() => { resetFields(); switchView("login"); }}>
+                  Entrar
+                </button>
+              </div>
+            </form>
+          )}
+
+          {view === "forgot" && (
+            <form onSubmit={handleForgot}>
+              <h2 className="osw" style={{ fontSize: 20, textTransform: "uppercase", marginBottom: 10, textAlign: "center" }}>Recuperar password</h2>
+              {!forgotSent ? (
+                <>
+                  <p style={{ fontSize: 13, color: "#8B92A0", marginBottom: 14, textAlign: "center" }}>
+                    Indica o teu email e enviamos instruções para redefinires a palavra-passe.
+                  </p>
+                  <label style={labelStyle}>Email
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} placeholder="tu@email.com" />
+                  </label>
+                  {error && <div style={{ color: "#FF8A65", fontSize: 13, marginTop: 10 }}>{error}</div>}
+                  <button type="submit" style={primaryBtnStyle}>Enviar instruções</button>
+                </>
+              ) : (
+                <div style={{ textAlign: "center", padding: "10px 0" }}>
+                  <Check size={28} color="#E8402A" style={{ marginBottom: 10 }} />
+                  <p style={{ fontSize: 14, color: "#F1F0EC" }}>
+                    Se existir uma conta com o email <b>{email}</b>, vais receber instruções em breve.
+                  </p>
+                </div>
+              )}
+              <div style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "#8B92A0" }}>
+                <button type="button" style={{ ...linkBtnStyle, color: "#E8402A" }} onClick={() => { resetFields(); switchView("login"); }}>
+                  Voltar a entrar
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        <p style={{ fontSize: 11, color: "#565C66", textAlign: "center", marginTop: 16, lineHeight: 1.5 }}>
+          Esta é uma versão de demonstração — as contas ficam guardadas só enquanto a página estiver aberta.
+        </p>
       </div>
     </div>
   );
